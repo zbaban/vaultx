@@ -1,0 +1,64 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    
+    - name: Set up build environment
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y rpm
+
+    - name: Build Debian package
+      run: |
+        mkdir -p vaultx_1.0.0/DEBIAN
+        cp debian/control vaultx_1.0.0/DEBIAN/
+        mkdir -p vaultx_1.0.0/usr/local/bin
+        cp vaultx vaultx_1.0.0/usr/local/bin/
+        dpkg-deb --build vaultx_1.0.0
+
+    - name: Build RPM package
+      run: |
+        mkdir -p ~/rpmbuild/{SOURCES,SPECS}
+        cp vaultx .
+        tar czf ~/rpmbuild/SOURCES/vaultx-1.0.0.tar.gz vaultx
+        cp rpm/vaultx.spec ~/rpmbuild/SPECS/
+        rpmbuild -ba ~/rpmbuild/SPECS/vaultx.spec
+
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ github.ref }}
+        release_name: Release ${{ github.ref }}
+        draft: false
+        prerelease: false
+
+    - name: Upload Debian Package
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./vaultx_1.0.0.deb
+        asset_name: vaultx_1.0.0.deb
+        asset_content_type: application/vnd.debian.binary-package
+
+    - name: Upload RPM Package
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ~/rpmbuild/RPMS/x86_64/vaultx-1.0.0-1.x86_64.rpm
+        asset_name: vaultx-1.0.0-1.x86_64.rpm
+        asset_content_type: application/x-rpm
