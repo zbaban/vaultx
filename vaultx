@@ -1,0 +1,116 @@
+#!/bin/bash
+
+# Define colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# Function to install jq
+install_jq() {
+    echo -e "${BLUE}Checking if jq is installed...${NC}"
+    if ! command -v jq &> /dev/null; then
+        echo -e "${YELLOW}jq is not installed. Attempting to install...${NC}"
+        if command -v apt-get &> /dev/null; then
+            sudo apt-get update && sudo apt-get install -y jq
+        elif command -v yum &> /dev/null; then
+            sudo yum install -y jq
+        elif command -v dnf &> /dev/null; then
+            sudo dnf install -y jq
+        elif command -v zypper &> /dev/null; then
+            sudo zypper install -y jq
+        else
+            echo -e "${RED}Unable to install jq. Please install it manually.${NC}"
+            exit 1
+        fi
+        echo -e "${GREEN}jq has been installed successfully.${NC}"
+    else
+        echo -e "${GREEN}jq is already installed.${NC}"
+    fi
+}
+
+# Install jq
+install_jq
+
+# Prompt the user to enter the Vault token
+read -sp "Enter your Vault token: " VAULT_TOKEN
+echo ""
+
+# Function to discover nodes in the cluster
+discover_nodes() {
+    echo -e "${BLUE}Discovering Vault cluster nodes...${NC}"
+    NODES=$(VAULT_TOKEN=$VAULT_TOKEN vault operator members -format=json | jq -r '.Nodes[].api_address')
+    echo -e "${BLUE}Discovered nodes: $NODES${NC}"
+}
+
+# Function to colorize output
+colorize_output() {
+    while IFS= read -r line; do
+        if [[ $line == "Key"* || $line == "---"* ]]; then
+            echo -e "${YELLOW}${line}${NC}"
+        elif [[ $line == *" "* ]]; then
+            key=$(echo "$line" | awk '{print substr($0, 1, 23)}')
+            value=$(echo "$line" | awk '{print substr($0, 24)}')
+            echo -e "${BLUE}${key}${GREEN}${value}${NC}"
+        else
+            echo "$line"
+        fi
+    done
+}
+
+# Function to get vault status from a node
+get_vault_status() {
+    echo -e "${RED}=== Vault Status for $1 ===${NC}"
+    VAULT_ADDR=$1 VAULT_TOKEN=$VAULT_TOKEN vault status 2>&1 | colorize_output || echo -e "${RED}Failed to connect to $1${NC}"
+    echo ""
+}
+
+# Function to get raft list-peers
+get_raft_list_peers() {
+    echo -e "${RED}=== Raft List Peers ===${NC}"
+    VAULT_TOKEN=$VAULT_TOKEN vault operator raft list-peers 2>&1 | colorize_output
+    echo ""
+}
+
+# Function to get vault license
+get_vault_license() {
+    echo -e "${RED}=== Vault License ===${NC}"
+    VAULT_TOKEN=$VAULT_TOKEN vault license get 2>&1 | colorize_output
+    echo ""
+}
+
+# Function to get raft autopilot state
+get_raft_autopilot_state() {
+    echo -e "${RED}=== Raft Autopilot State ===${NC}"
+    VAULT_TOKEN=$VAULT_TOKEN vault operator raft autopilot state 2>&1 | colorize_output
+    echo ""
+}
+
+# Function to get raft autopilot config
+get_raft_autopilot_config() {
+    echo -e "${RED}=== Raft Autopilot Config ===${NC}"
+    VAULT_TOKEN=$VAULT_TOKEN vault operator raft autopilot get-config 2>&1 | colorize_output
+    echo ""
+}
+
+# Function to get replication status
+get_replication_status() {
+    echo -e "${RED}=== Replication Status ===${NC}"
+    VAULT_TOKEN=$VAULT_TOKEN vault read -format=json sys/replication/status | jq
+    echo ""
+}
+
+# Discover nodes in the cluster
+discover_nodes
+
+# Main script execution
+for NODE in $NODES; do
+    get_vault_status $NODE
+done
+
+get_raft_list_peers
+get_vault_license
+get_raft_autopilot_state
+get_raft_autopilot_config
+get_replication_status
