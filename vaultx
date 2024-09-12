@@ -7,32 +7,6 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-# Function to install jq
-install_jq() {
-    echo -e "${BLUE}Checking if jq is installed...${NC}"
-    if ! command -v jq &> /dev/null; then
-        echo -e "${YELLOW}jq is not installed. Attempting to install...${NC}"
-        if command -v apt-get &> /dev/null; then
-            sudo apt-get update && sudo apt-get install -y jq
-        elif command -v yum &> /dev/null; then
-            sudo yum install -y jq
-        elif command -v dnf &> /dev/null; then
-            sudo dnf install -y jq
-        elif command -v zypper &> /dev/null; then
-            sudo zypper install -y jq
-        else
-            echo -e "${RED}Unable to install jq. Please install it manually.${NC}"
-            exit 1
-        fi
-        echo -e "${GREEN}jq has been installed successfully.${NC}"
-    else
-        echo -e "${GREEN}jq is already installed.${NC}"
-    fi
-}
-
-# Install jq
-install_jq
-
 # Prompt the user to enter the Vault token
 read -sp "Enter your Vault token: " VAULT_TOKEN
 echo ""
@@ -101,6 +75,13 @@ get_replication_status() {
     echo ""
 }
 
+# Function to get vault operator members
+get_vault_operator_members() {
+    echo -e "${RED}=== Vault Operator Members ===${NC}"
+    VAULT_TOKEN=$VAULT_TOKEN vault operator members 2>&1 | colorize_output
+    echo ""
+}
+
 # Discover nodes in the cluster
 discover_nodes
 
@@ -110,6 +91,7 @@ for NODE in $NODES; do
 done
 
 get_raft_list_peers
+get_vault_operator_members
 get_vault_license
 get_raft_autopilot_state
 get_raft_autopilot_config
