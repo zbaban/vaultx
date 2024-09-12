@@ -1,0 +1,10 @@
+Package: vaultx
+Version: 1.0.0
+Section: utils
+Priority: optional
+Architecture: all
+Depends: bash, vault, jq
+Maintainer: Zaid Baban <zaidbaban@gmail.com>
+Description: Comprehensive Vault Cluster Status Checker
+ vaultx provides a comprehensive status check for Vault clusters,
+ including node discovery, status checks, and various Vault oper
