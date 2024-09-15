@@ -1,3 +1,7 @@
+Here's the updated README based on your requirements:
+
+---
+
 ## VaultX
 
 **Description**  
@@ -12,41 +16,34 @@ VaultX is a Bash script designed to gather and display critical operational info
 - **Colorized Output**: Key details are highlighted in various colors for better readability.
 
 ### Prerequisites:
-- **jq**: The script requires `jq` to process JSON data. The script includes functionality to automatically install `jq` if it's not already present on your system.
-- **Vault CLI**: You must have the Vault CLI installed and configured for this script to work.
+- **jq**: The script requires `jq` to process JSON data.
+- **Vault CLI**: You must have the Vault CLI installed and configured.
 
-### Installation:
-To install `jq` (if not already installed), the script will detect your package manager (e.g., `apt-get`, `yum`, `dnf`, or `zypper`) and attempt to install it. Alternatively, you can install it manually using one of the following commands based on your system:
-```bash
-sudo apt-get install jq    # For Debian/Ubuntu
-sudo yum install jq        # For RHEL/CentOS
-sudo dnf install jq        # For Fedora
-sudo zypper install jq     # For SUSE
-```
+### Installation & Usage:
+1. Clone the repository and move the script to `/usr/local/bin/` for easier access:
+   ```bash
+   git clone https://github.com/zbaban/vaultx.git
+   sudo mv vaultx/vaultx /usr/local/bin/
+   sudo chmod +x /usr/local/bin/vaultx
+   ```
 
-### Usage:
-1. **Vault Token**: If your VAULT_TOKEN is set as an environment variable, it will be used to display the result. Otherwise, you’ll be prompted to enter your Vault token for authentication to access the Vault cluster.
-2. The script will automatically discover nodes in the Vault cluster and display their statuses along with other critical operational details.
+2. Install `jq` (if not already installed) using your system’s package manager:
+   ```bash
+   sudo apt-get install jq    # For Debian/Ubuntu
+   sudo yum install jq        # For RHEL/CentOS
+   sudo dnf install jq        # For Fedora
+   sudo zypper install jq     # For SUSE
+   ```
 
-### Example:
-Run the script using the command:
-```bash
-./vaultx.sh
-```
+3. **Vault Token**: If your VAULT_TOKEN is set as an environment variable, it will be used to display the result. Otherwise, you’ll be prompted to enter your Vault token for authentication to access the Vault cluster.
 
-Or you can run it as the following:
+4. Run the script:
+   ```bash
+   vaultx
+   ```
 
-```bash
-git clone https://github.com/zbaban/vaultx.git
-
-mv vaultx/vaultx /usr/local/bin/
-
-chmod +x /usr/local/bin/vaultx
-
-vaultx
-```
-
-You will be prompted to enter your Vault token unless it's already set as an environment variable, after which the script will display the following information:
+### Example Output:
+When executed, the script will display:
 - Vault status for each node in the cluster.
 - Raft peer details.
 - Vault license information.
@@ -59,3 +56,7 @@ You will be prompted to enter your Vault token unless it's already set as an env
 - Replication status (in JSON format).
 
 This script simplifies monitoring and managing a HashiCorp Vault cluster by consolidating essential information into a single interface for quick and easy reference.
+
+---
+
+This version combines the installation and example usage for a smoother setup process.
