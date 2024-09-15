@@ -33,6 +33,19 @@ Run the script using the command:
 ```bash
 ./vaultx.sh
 ```
+
+Or you can run it as the following:
+
+```bash
+git clone https://github.com/zbaban/vaultx.git
+
+mv vaultx/vaultx /usr/local/bin/
+
+chmod +x /usr/local/bin/vaultx
+
+vaultx
+```
+
 You will be prompted to enter your Vault token unless it's already set as an environment variable, after which the script will display the following information:
 - Vault status for each node in the cluster.
 - Raft peer details.
