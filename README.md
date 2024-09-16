@@ -53,7 +53,3 @@ When executed, the script will display:
 - Replication status (in JSON format).
 
 This script simplifies monitoring and managing a HashiCorp Vault cluster by consolidating essential information into a single interface for quick and easy reference.
-
----
-
-This version combines the installation and example usage for a smoother setup process.
