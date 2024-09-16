@@ -1,6 +1,3 @@
-Here's the updated README based on your requirements:
-
----
 
 ## VaultX
 
