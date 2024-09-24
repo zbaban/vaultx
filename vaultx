@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Define colors
+# Define colors (reverting to original scheme)
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -8,43 +8,74 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 PINK='\033[0;35m'
 
+# Function to check if output is being piped
+is_piped() {
+    [ -t 1 ] && return 1 || return 0
+}
+
+# Function to conditionally apply color
+color() {
+    if is_piped; then
+        cat
+    else
+        echo -en "$1"
+        cat
+        echo -en "$NC"
+    fi
+}
+
 # Check if VAULT_TOKEN is set as an environment variable
 if [ -z "$VAULT_TOKEN" ]; then
     # If not set, prompt the user to enter the Vault token
     read -sp "Enter your Vault token: " VAULT_TOKEN
     echo ""
 else
-    echo -e "${GREEN}Using VAULT_TOKEN from environment variable.${NC}"
+    echo "Using VAULT_TOKEN from environment variable." | color "$GREEN"
 fi
 
 # Function to discover nodes in the cluster
 discover_nodes() {
-    echo -e "${BLUE}Discovering Vault cluster nodes...${NC}"
+    echo "Discovering Vault cluster nodes..." | color "$BLUE"
     NODES=$(VAULT_TOKEN=$VAULT_TOKEN vault operator members -format=json | jq -r '.Nodes[].api_address')
-    echo -e "${BLUE}Discovered nodes:${NC}"
+    echo "Discovered nodes:" | color "$BLUE"
     for NODE in $NODES; do
-        echo -e "${YELLOW}$NODE${NC}"
+        echo "$NODE" | color "$YELLOW"
     done
+}
+
+# Function to get vault status from a node
+get_vault_status() {
+    echo "=== Vault Status for $1 ===" | color "$RED"
+    VAULT_ADDR=$1 VAULT_TOKEN=$VAULT_TOKEN vault status 2>&1 | colorize_vault_status
+    echo ""
 }
 
 # Function to colorize vault status output
 colorize_vault_status() {
     while IFS= read -r line; do
         if [[ $line == "Key"* || $line == "---"* ]]; then
-            echo -e "${YELLOW}${line}${NC}"
+            echo "$line" | color "$YELLOW"
         else
             key=$(echo "$line" | awk -F'[ ]{2,}' '{print $1}')
             value=$(echo "$line" | awk -F'[ ]{2,}' '{print $2}')
-            printf "${BLUE}%-40s${GREEN}%s${NC}\n" "$key" "$value"
+            printf "%-40s" "$key" | color "$BLUE"
+            printf "%s\n" "$value" | color "$GREEN"
         fi
     done
+}
+
+# Function to get raft list-peers
+get_raft_list_peers() {
+    echo "=== Raft List Peers ===" | color "$RED"
+    VAULT_TOKEN=$VAULT_TOKEN vault operator raft list-peers 2>&1 | colorize_raft_list_peers
+    echo ""
 }
 
 # Function to colorize raft list-peers output
 colorize_raft_list_peers() {
     while IFS= read -r line; do
         if [[ $line == "Node"* || $line == "----"* ]]; then
-            echo -e "${YELLOW}${line}${NC}"
+            echo "$line" | color "$YELLOW"
         else
             node=$(echo "$line" | awk '{print $1}')
             address=$(echo "$line" | awk '{print $2}')
@@ -52,19 +83,26 @@ colorize_raft_list_peers() {
             voter=$(echo "$line" | awk '{print $4}')
 
             if [[ $state == "leader" ]]; then
-                printf "${PINK}%-10s %-21s %-11s %-5s${NC}\n" "$node" "$address" "$state" "$voter"
+                printf "%-10s %-21s %-11s %-5s\n" "$node" "$address" "$state" "$voter" | color "$PINK"
             else
-                printf "${GREEN}%-10s %-21s %-11s %-5s${NC}\n" "$node" "$address" "$state" "$voter"
+                printf "%-10s %-21s %-11s %-5s\n" "$node" "$address" "$state" "$voter" | color "$GREEN"
             fi
         fi
     done
 }
 
-# Function to colorize raft members output
+# Function to get vault operator members
+get_vault_operator_members() {
+    echo "=== Vault Operator Members ===" | color "$RED"
+    VAULT_TOKEN=$VAULT_TOKEN vault operator members 2>&1 | colorize_vault_operator_members
+    echo ""
+}
+
+# Function to colorize vault operator members output
 colorize_vault_operator_members() {
     while IFS= read -r line; do
         if [[ $line == "Host Name"* || $line == "---------"* ]]; then
-            echo -e "${YELLOW}${line}${NC}"
+            echo "$line" | color "$YELLOW"
         else
             host_name=$(echo "$line" | awk '{print $1}')
             api_address=$(echo "$line" | awk '{print $2}')
@@ -76,96 +114,77 @@ colorize_vault_operator_members() {
             last_echo=$(echo "$line" | awk '{print $8}')
 
             if [[ $active_node == "true" ]]; then
-                printf "${PINK}%-18s %-30s %-30s %-12s %-9s %-17s %-17s %-20s${NC}\n" \
-                    "$host_name" "$api_address" "$cluster_address" "$active_node" "$version" "$upgrade_version" "$redundancy_zone" "$last_echo"
+                printf "%-18s %-30s %-30s %-12s %-9s %-17s %-17s %-20s\n" \
+                    "$host_name" "$api_address" "$cluster_address" "$active_node" "$version" "$upgrade_version" "$redundancy_zone" "$last_echo" | color "$PINK"
             else
-                printf "${GREEN}%-18s %-30s %-30s %-12s %-9s %-17s %-17s %-20s${NC}\n" \
-                    "$host_name" "$api_address" "$cluster_address" "$active_node" "$version" "$upgrade_version" "$redundancy_zone" "$last_echo"
+                printf "%-18s %-30s %-30s %-12s %-9s %-17s %-17s %-20s\n" \
+                    "$host_name" "$api_address" "$cluster_address" "$active_node" "$version" "$upgrade_version" "$redundancy_zone" "$last_echo" | color "$GREEN"
             fi
         fi
     done
 }
 
-# Function to colorize autopilot state output
-colorize_autopilot_state() {
-    while IFS= read -r line; do
-        if [[ $line == "Voters:"* || $line == "Servers:"* || $line == "Upgrade Info:"* ]]; then
-            echo -e "${YELLOW}${line}${NC}"
-        elif [[ $line == *":"* ]]; then
-            key=$(echo "$line" | awk -F: '{print $1}')
-            value=$(echo "$line" | awk -F: '{print $2}' | sed 's/^[[:space:]]*//')
-            echo -e "${BLUE}${key}:${NC} ${GREEN}${value}${NC}"
-        elif [[ $line == *" "* ]]; then
-            echo -e "${GREEN}${line}${NC}"
-        else
-            echo "$line"
-        fi
-    done
-}
-
-# Function to colorize autopilot config output
-colorize_output_autopilot_config() {
-    while IFS= read -r line; do
-        if [[ $line == "Key"* || $line == "---"* ]]; then
-            echo -e "${YELLOW}${line}${NC}"
-        else
-            key=$(echo "$line" | awk '{print substr($0, 1, 34)}')
-            value=$(echo "$line" | awk '{print substr($0, 35)}')
-            echo -e "${BLUE}${key}${NC}${GREEN}${value}${NC}"
-        fi
-    done
-}
-
-# Function to get vault status from a node
-get_vault_status() {
-    echo -e "${RED}=== Vault Status for $1 ===${NC}"
-    VAULT_ADDR=$1 VAULT_TOKEN=$VAULT_TOKEN vault status 2>&1 | colorize_vault_status || echo -e "${RED}Failed to connect to $1${NC}"
-    echo ""
-}
-
-# Function to get raft list-peers
-get_raft_list_peers() {
-    echo -e "${RED}=== Raft List Peers ===${NC}"
-    VAULT_TOKEN=$VAULT_TOKEN vault operator raft list-peers 2>&1 | colorize_raft_list_peers
-    echo ""
-}
-
 # Function to get vault license
 get_vault_license() {
-    echo -e "${RED}=== Vault License ===${NC}"
+    echo "=== Vault License ===" | color "$RED"
     VAULT_TOKEN=$VAULT_TOKEN vault license get -format=json 2>&1 | jq .data.autoloaded
     echo ""
 }
 
 # Function to get raft autopilot state
 get_raft_autopilot_state() {
-    echo -e "${RED}=== Raft Autopilot State ===${NC}"
+    echo "=== Raft Autopilot State ===" | color "$RED"
     VAULT_TOKEN=$VAULT_TOKEN vault operator raft autopilot state 2>&1 | colorize_autopilot_state
     echo ""
 }
 
+# Function to colorize autopilot state output
+colorize_autopilot_state() {
+    while IFS= read -r line; do
+        if [[ $line == "Voters:"* || $line == "Servers:"* || $line == "Upgrade Info:"* ]]; then
+            echo "$line" | color "$YELLOW"
+        elif [[ $line == *":"* ]]; then
+            key=$(echo "$line" | awk -F: '{print $1}')
+            value=$(echo "$line" | awk -F: '{print $2}' | sed 's/^[[:space:]]*//')
+            echo -n "${key}:" | color "$BLUE"
+            echo " ${value}" | color "$GREEN"
+        elif [[ $line == *" "* ]]; then
+            echo "$line" | color "$GREEN"
+        else
+            echo "$line"
+        fi
+    done
+}
+
 # Function to get raft autopilot config
 get_raft_autopilot_config() {
-    echo -e "${RED}=== Raft Autopilot Config ===${NC}"
+    echo "=== Raft Autopilot Config ===" | color "$RED"
     VAULT_TOKEN=$VAULT_TOKEN vault operator raft autopilot get-config 2>&1 | colorize_output_autopilot_config
     echo ""
 }
 
+# Function to colorize autopilot config output
+colorize_output_autopilot_config() {
+    while IFS= read -r line; do
+        if [[ $line == "Key"* || $line == "---"* ]]; then
+            echo "$line" | color "$YELLOW"
+        else
+            key=$(echo "$line" | awk '{print substr($0, 1, 34)}')
+            value=$(echo "$line" | awk '{print substr($0, 35)}')
+            echo -n "$key" | color "$BLUE"
+            echo "$value" | color "$GREEN"
+        fi
+    done
+}
+
 # Function to get replication status
 get_replication_status() {
-    echo -e "${RED}=== Replication DR Status ===${NC}"
+    echo "=== Replication DR Status ===" | color "$RED"
     VAULT_TOKEN=$VAULT_TOKEN vault read -format=json sys/replication/dr/status | jq .data
     echo ""
 
-    echo -e "${RED}=== Replication Performance Status ===${NC}"
+    echo "=== Replication Performance Status ===" | color "$RED"
     VAULT_TOKEN=$VAULT_TOKEN vault read -format=json sys/replication/performance/status | jq .data
-    echo ""
-}
-
-# Function to get vault operator members
-get_vault_operator_members() {
-    echo -e "${RED}=== Vault Operator Members ===${NC}"
-    VAULT_TOKEN=$VAULT_TOKEN vault operator members 2>&1 | colorize_vault_operator_members
     echo ""
 }
 
