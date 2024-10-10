@@ -39,6 +39,12 @@ VaultX is a Bash script designed to gather and display critical operational info
    vaultx
    ```
 
+5. To see the results in json format, run the command with -format=json flag
+   ```bash
+   vaultx -format=json
+   ```
+   
+
 ### Example Output:
 When executed, the script will display:
 - Vault status for each node in the cluster.
