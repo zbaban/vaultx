@@ -24,30 +24,51 @@ color() {
     fi
 }
 
+# Parse command line arguments
+JSON_FORMAT=false
+while [[ "$#" -gt 0 ]]; do
+    case $1 in
+        -format=json) JSON_FORMAT=true ;;
+        *) echo "Unknown parameter passed: $1"; exit 1 ;;
+    esac
+    shift
+done
+
 # Check if VAULT_TOKEN is set as an environment variable
 if [ -z "$VAULT_TOKEN" ]; then
     # If not set, prompt the user to enter the Vault token
     read -sp "Enter your Vault token: " VAULT_TOKEN
     echo ""
 else
-    echo "Using VAULT_TOKEN from environment variable." | color "$GREEN"
+    if [ "$JSON_FORMAT" = false ]; then
+        echo "Using VAULT_TOKEN from environment variable." | color "$GREEN"
+    fi
 fi
 
 # Function to discover nodes in the cluster
 discover_nodes() {
-    echo "Discovering Vault cluster nodes..." | color "$BLUE"
+    if [ "$JSON_FORMAT" = false ]; then
+        echo "Discovering Vault cluster nodes..." | color "$BLUE"
+    fi
     NODES=$(VAULT_TOKEN=$VAULT_TOKEN vault operator members -format=json | jq -r '.Nodes[].api_address')
-    echo "Discovered nodes:" | color "$BLUE"
-    for NODE in $NODES; do
-        echo "$NODE" | color "$YELLOW"
-    done
+    if [ "$JSON_FORMAT" = false ]; then
+        echo "Discovered nodes:" | color "$BLUE"
+        for NODE in $NODES; do
+            echo "$NODE" | color "$YELLOW"
+        done
+    fi
 }
 
 # Function to get vault status from a node
 get_vault_status() {
-    echo "=== Vault Status for $1 ===" | color "$RED"
-    VAULT_ADDR=$1 VAULT_TOKEN=$VAULT_TOKEN vault status 2>&1 | colorize_vault_status
-    echo ""
+    if [ "$JSON_FORMAT" = false ]; then
+        echo "=== Vault Status for $1 ===" | color "$RED"
+        VAULT_ADDR=$1 VAULT_TOKEN=$VAULT_TOKEN vault status 2>&1 | colorize_vault_status
+        echo ""
+    else
+        echo "\"Vault Status for $1\": "
+        VAULT_ADDR=$1 VAULT_TOKEN=$VAULT_TOKEN vault status -format=json 2>&1 | jq
+    fi
 }
 
 # Function to colorize vault status output
@@ -66,9 +87,14 @@ colorize_vault_status() {
 
 # Function to get raft list-peers
 get_raft_list_peers() {
-    echo "=== Raft List Peers ===" | color "$RED"
-    VAULT_TOKEN=$VAULT_TOKEN vault operator raft list-peers 2>&1 | colorize_raft_list_peers
-    echo ""
+    if [ "$JSON_FORMAT" = false ]; then
+        echo "=== Raft List Peers ===" | color "$RED"
+        VAULT_TOKEN=$VAULT_TOKEN vault operator raft list-peers 2>&1 | colorize_raft_list_peers
+        echo ""
+    else
+        echo "\"Raft List Peers\": "
+        VAULT_TOKEN=$VAULT_TOKEN vault operator raft list-peers -format=json 2>&1 | jq
+    fi
 }
 
 # Function to colorize raft list-peers output
@@ -93,9 +119,14 @@ colorize_raft_list_peers() {
 
 # Function to get vault operator members
 get_vault_operator_members() {
-    echo "=== Vault Operator Members ===" | color "$RED"
-    VAULT_TOKEN=$VAULT_TOKEN vault operator members 2>&1 | colorize_vault_operator_members
-    echo ""
+    if [ "$JSON_FORMAT" = false ]; then
+        echo "=== Vault Operator Members ===" | color "$RED"
+        VAULT_TOKEN=$VAULT_TOKEN vault operator members 2>&1 | colorize_vault_operator_members
+        echo ""
+    else
+        echo "\"Vault Operator Members\": "
+        VAULT_TOKEN=$VAULT_TOKEN vault operator members -format=json 2>&1 | jq
+    fi
 }
 
 # Function to colorize vault operator members output
@@ -126,16 +157,26 @@ colorize_vault_operator_members() {
 
 # Function to get vault license
 get_vault_license() {
-    echo "=== Vault License ===" | color "$RED"
-    VAULT_TOKEN=$VAULT_TOKEN vault license get -format=json 2>&1 | jq .data.autoloaded
-    echo ""
+    if [ "$JSON_FORMAT" = false ]; then
+        echo "=== Vault License ===" | color "$RED"
+        VAULT_TOKEN=$VAULT_TOKEN vault license get -format=json 2>&1 | jq .data.autoloaded
+        echo ""
+    else
+        echo "\"Vault License\": "
+        VAULT_TOKEN=$VAULT_TOKEN vault license get -format=json 2>&1 | jq '.data.autoloaded'
+    fi
 }
 
 # Function to get raft autopilot state
 get_raft_autopilot_state() {
-    echo "=== Raft Autopilot State ===" | color "$RED"
-    VAULT_TOKEN=$VAULT_TOKEN vault operator raft autopilot state 2>&1 | colorize_autopilot_state
-    echo ""
+    if [ "$JSON_FORMAT" = false ]; then
+        echo "=== Raft Autopilot State ===" | color "$RED"
+        VAULT_TOKEN=$VAULT_TOKEN vault operator raft autopilot state 2>&1 | colorize_autopilot_state
+        echo ""
+    else
+        echo "\"Raft Autopilot State\": "
+        VAULT_TOKEN=$VAULT_TOKEN vault operator raft autopilot state -format=json 2>&1 | jq
+    fi
 }
 
 # Function to colorize autopilot state output
@@ -158,9 +199,14 @@ colorize_autopilot_state() {
 
 # Function to get raft autopilot config
 get_raft_autopilot_config() {
-    echo "=== Raft Autopilot Config ===" | color "$RED"
-    VAULT_TOKEN=$VAULT_TOKEN vault operator raft autopilot get-config 2>&1 | colorize_output_autopilot_config
-    echo ""
+    if [ "$JSON_FORMAT" = false ]; then
+        echo "=== Raft Autopilot Config ===" | color "$RED"
+        VAULT_TOKEN=$VAULT_TOKEN vault operator raft autopilot get-config 2>&1 | colorize_output_autopilot_config
+        echo ""
+    else
+        echo "\"Raft Autopilot Config\": "
+        VAULT_TOKEN=$VAULT_TOKEN vault operator raft autopilot get-config -format=json 2>&1 | jq
+    fi
 }
 
 # Function to colorize autopilot config output
@@ -179,26 +225,71 @@ colorize_output_autopilot_config() {
 
 # Function to get replication status
 get_replication_status() {
-    echo "=== Replication DR Status ===" | color "$RED"
-    VAULT_TOKEN=$VAULT_TOKEN vault read -format=json sys/replication/dr/status | jq .data
-    echo ""
+    if [ "$JSON_FORMAT" = false ]; then
+        echo "=== Replication DR Status ===" | color "$RED"
+        VAULT_TOKEN=$VAULT_TOKEN vault read -format=json sys/replication/dr/status | jq .data
+        echo ""
 
-    echo "=== Replication Performance Status ===" | color "$RED"
-    VAULT_TOKEN=$VAULT_TOKEN vault read -format=json sys/replication/performance/status | jq .data
-    echo ""
+        echo "=== Replication Performance Status ===" | color "$RED"
+        VAULT_TOKEN=$VAULT_TOKEN vault read -format=json sys/replication/performance/status | jq .data
+        echo ""
+    else
+        echo '"Replication Status": {'
+        echo '"Replication DR Status": '
+        VAULT_TOKEN=$VAULT_TOKEN vault read -format=json sys/replication/dr/status | jq .data
+        echo ', "Replication Performance Status": '
+        VAULT_TOKEN=$VAULT_TOKEN vault read -format=json sys/replication/performance/status | jq .data
+        echo '}'
+    fi
 }
 
 # Discover nodes in the cluster
 discover_nodes
 
 # Main script execution
-for NODE in $NODES; do
-    get_vault_status $NODE
-done
+if [ "$JSON_FORMAT" = true ]; then
+    echo '{'
+    echo '"Discovered Nodes": ['
+    first_node=true
+    for NODE in $NODES; do
+        if [ "$first_node" = false ]; then
+            echo ','
+        fi
+        first_node=false
+        echo "{"
+        echo "\"node\": \"$NODE\","
+        get_vault_status $NODE
+        echo "}"
+    done
+    echo '],'
 
-get_raft_list_peers
-get_vault_operator_members
-get_vault_license
-get_raft_autopilot_state
-get_raft_autopilot_config
-get_replication_status
+    get_raft_list_peers
+    echo ','
+
+    get_vault_operator_members
+    echo ','
+
+    get_vault_license
+    echo ','
+
+    get_raft_autopilot_state
+    echo ','
+
+    get_raft_autopilot_config
+    echo ','
+
+    get_replication_status
+
+    echo '}'
+else
+    for NODE in $NODES; do
+        get_vault_status $NODE
+    done
+
+    get_raft_list_peers
+    get_vault_operator_members
+    get_vault_license
+    get_raft_autopilot_state
+    get_raft_autopilot_config
+    get_replication_status
+fi
